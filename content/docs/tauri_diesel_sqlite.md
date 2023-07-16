@@ -56,9 +56,11 @@ pub fn establish_connection() -> SqliteConnection {
     
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
     SqliteConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to the database: {}", database_url))
+        .unwrap_or_else(|_| panic!("Error connecting to the database: {}", 
+            database_url))
 }
 ```
 Here the library ``dotenvy`` is taken for loading the ``.env`` file. The variable here has the name ``DATABASE_URL``.
@@ -87,10 +89,13 @@ pub fn establish_connection(database_filename: &str) -> SqliteConnection {
 
     let home_dir = home_dir().unwrap_or("").to_string(); 
 
-    let database_url = format!("sqlite://{}/{}",home_dir.to_string_lossy(), database_filename);
+    let database_url = format!("sqlite://{}/{}",
+        home_dir.to_string_lossy(), 
+        database_filename);
 
     SqliteConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to the database: {}", database_url))
+        .unwrap_or_else(|_| panic!("Error connecting to the database: {}", 
+            database_url))
 }
 ```
 The database connection is then used as follows:
@@ -198,6 +203,8 @@ table! {
 }
 ```
 
+### `Diesel` features "64-column-tables" {#diesel_features}
+
 In this example, more than 32 fields have been defined in the `document` table. For this case, the `features` "64-column-tables" must be set in the `diesel`:
 `Cargo.toml`
 ```toml
@@ -205,6 +212,9 @@ In this example, more than 32 fields have been defined in the `document` table. 
 diesel = { version = "2.1.0", features = ["sqlite", "64-column-tables"] }
 ...
 ```
+
+### Change fieldname {#change_fieldname}
+
 In addition, field names that are not defined snake_case or correspond to invalid syntax in rust, e.g. `type`, must be mapped.
 ```rust
  #[sql_name = "type"]
@@ -212,10 +222,73 @@ In addition, field names that are not defined snake_case or correspond to invali
 ```
 Here the database field `type` is mapped to the rust field `document_type`.
 
+### CREATE TABLE IF NOT EXISTS
+The library `diesel` does not yet directly support the creating of the tables. So if you want to create the tables first in an application with the start of the server, if they do not exist, then you have to implement the SQL statement itself.
+In my example I have defined the function `check_tables` in the file `schema.rs`.
+
+Example 2.2:
+
+```rust
+use diesel::sqlite::Sqlite;
+use diesel::debug_query;
+use diesel::prelude::*;
+use tracing::info;
+pub fn check_tables(mut con: diesel::SqliteConnection) -> Result<usize, diesel::result::Error> {
+    info!("start check_tables()");
+
+    let mut sql_sing = concat!(
+        "CREATE TABLE IF NOT EXISTS `document` (",
+        "`id` TEXT NOT NULL PRIMARY KEY, ",
+        "`subject` TEXT NOT NULL, ",
+        "`status` TEXT NOT NULL, ",
+        "`date` DATETIME NOT NULL, ",
+        "`sender_name` TEXT DEFAULT '', ",
+        "`sender_addr` TEXT DEFAULT '', ",
+        "`recipient_name` TEXT DEFAULT '', ",
+        "`recipient_addr` TEXT DEFAULT '', ",
+        "`from` TEXT DEFAULT '[]', ",
+        "`to` TEXT DEFAULT '[]', ",
+        "`body` TEXT DEFAULT '', ",
+        "`type` TEXT DEFAULT '', ",
+        "`metadata` TEXT DEFAULT '{}', ",
+        "`category` TEXT DEFAULT '[]', ",
+        "`amount` DECIMAL(10,2) DEFAULT 0, ",
+        "`currency` TEXT DEFAULT '', ",
+        "`template_name` TEXT DEFAULT '', ",
+        "`doc_data` TEXT DEFAULT '{}', ",
+        "`input_path` TEXT DEFAULT '', ",
+        "`langu` TEXT DEFAULT '', ",
+        "`num_pages` NUMBER DEFAULT 0, ",
+        "`protocol` TEXT DEFAULT '', ",
+        "`sub_path` TEXT DEFAULT '', ",
+        "`filename` TEXT DEFAULT '', ",
+        "`file_extension` TEXT DEFAULT '',",
+        "`file` TEXT DEFAULT '', ",
+        "`base64` TEXT DEFAULT '', ",
+        "`ocr_data` TEXT DEFAULT '', ",
+        "`jpg_file` TEXT DEFAULT '[]', ",
+        "`parent_document` TEXT DEFAULT '', ",
+        "`createdAt` DATETIME NOT NULL, ",
+        "`updatedAt` DATETIME NOT NULL, ",
+        "`deletedAt` DATETIME ",
+        ");"
+    );
+
+    let exec_query = diesel::sql_query(sql_sing.to_string());
+    info!("debug sql\n{}", debug_query::<Sqlite, _>(&exec_query));
+    exec_query.execute(&mut con)
+}    
+
+```
+
    ***
 
 ## Selection of data {#Selection}
 For the selection of data, a distinction must be made between two variants - on the one hand, a table can be accessed like an "object", on the other hand, an SQL-like query is available under `DSL`. This must be differentiated already when including the libraries.
+
+### Select single by id {#select_single}
+
+The simplest variant is the selection via the ID. 
 
 Example 3.1 Read a document for a document ID:
 ```rust
@@ -252,7 +325,11 @@ use tracing_subscriber;
 
 ...
 ```
-In the example exactly one document with a certain ID is selected. The fields of the selection are specified in `.select()`, in the example all fields. The type of the result must be specified after `.first` and must necessarily match the fields from `.select`. Here it is very easy to define and select a subset of the fields using a separate structure. The definition of the structure has the advantage that also an object and if necessary a vector to this object can be defined.
+The fields of the selection are specified in `.select()`, in the example all fields. The type of the result must be specified after `.first` and must necessarily match the fields from `.select`. 
+
+### Select a subset of the fields
+
+Here it is very easy to define and select a subset of the fields using a separate structure. The definition of the structure has the advantage that also an object and if necessary a vector to this object can be defined.
 
 Example 3.2 - select only certain fields:
 `models.rs`
@@ -290,6 +367,8 @@ pub struct  DocumentFile {
         };
 ...
 ```
+
+### Dynamic selection into a vector (local table) {#dyn_selection}
 
 An elegant variant for a dynamic selection is the definition `query` as `BoxedDsl`. This can be used to combine and dynamically generate `order_by()` or `filter()` sorts.
 In the following example, a URL is parsed dynamically and the selection conditions are built depending on the URL parameters. The notation is along the lines of `solr'.
@@ -430,7 +509,8 @@ use url::Url;
 The coding is not completely dynamic, because the used fields must have been defined in the structures of the database `schema.rs` and `models.rs`.
 Only the selection statemnt is dynamically assembled. In the example all conversions were also checked for validity by `match`, so that no `panic` is triggered, especially with transfer values from users. 
 
-### function `debug_query` extracts the statement for the output {#debug_query}
+### Function `debug_query` extracts the statement for the output {#debug_query}
+
 There is also a function to output the generated SQL statement. In this case you separate selection and execution.
 
 Example 3.5:
@@ -465,7 +545,8 @@ use tracing_subscriber;
 ```
 The function `debug_query` extracts the statement for the output. Afterwards the execution and further processing of the data takes place.
 
-### sql functions `count(*)` or `sum(amount)` {#count_sum}
+### SQL functions `count(*)` or `sum(amount)` {#count_sum}
+
 The standard functions in SQL for `count(*)` or `sum(x)` are available in `diesel`. But I only got the function `count(*)` to work, so here is the variant as native `sql`.
 
 Example 3.6:
@@ -508,6 +589,7 @@ It is a bit strange, but in the `where` condition the datatype is required to be
    ***
 
 ## Read PDF file to base64 conversion {#read_file}
+
 In my example the name and path of the PDF file is in the SQLite database. In the examples shown above the file name from field `file` and also the path from field `sub_path` is read to the document ID exactly for one document. The files are in the `home` directory in a main directory `MAIN_PATH` belonging to the program and in this then in a `FILE_PATH`. 
 
 Example 4.1 Definition of constants for the directories to be used in the `home` directory:
@@ -620,9 +702,13 @@ Example 4.4:
                 error: "".to_string(),
             };
 ```
+
    ***
 
-## Communication between Tauri and Vue {#Communication}
+## Tauri server 
+
+### Communication between Tauri and Vue {#Communication}
+
 Finally an info about the communication between Tauri and Vue. For this I can recommend the very good documentation at [Rob Donnelly](https://rfdonnelly.github.io/posts/tauri-async-rust-process/).
 I have implemented this variant. The transfer from/to Vue is always done as `string` in the end, so all structures have to be converted in and out as `json` string.
 
@@ -718,9 +804,8 @@ pub struct Receiver {
 }
 ```
 
-   ***
+### Central data `app_data` {#app_data}
 
-## Data structures in the Tauri server `app_data` {#app_data}
 In the Tauri - Vue communication, the tauri-handler contains a Stauts parameter that controls the processing of the channel.
 Similarly, in my application I need central information that the server manages and that should be available in the handlers, i.e., read, used or changed there and persistently saved. I decided to use a json file in the home directory. With the start of the server the data is read or, if the file does not exist, initialized and if the user maintains the data from the Vue application, the data should be written into the corresponding file.
 
@@ -877,9 +962,12 @@ async fn js2rs(
         })
 }
 ```
+
+### Async process model {#async_process_model}
+
 Because at this point processing does not yet take place, but the data is first passed into a channel for asynchronous processing, the Message and AppData must be passed as tuples and the type of the Input parameter must also be adjusted.
 
-Example 6.2:
+Example 6.3:
 ```rust
 ...
 struct AsyncProcInputTx {
@@ -933,9 +1021,11 @@ async fn async_process_model(
 ```
 To do this, the channel and also the `async_process_model` function must be adapted accordingly and the `app_Data` parameter extended.
 
+### Tauri command message handler
+
 In the tauri handler itself the object AppData can then be used. In my example there is `user` for reading and `save_user` for saving from the application.
 
-Example 6.3.:
+Example 6.4.:
 ```rust
 #[tauri::command(async)]
 async fn message_handler(
@@ -1014,9 +1104,11 @@ async fn message_handler(
 ```
 The `save_user` for the function `set(data)` off, which then also writes the data to the `home` directory, so that after a restart this data can be read.
 
+### Client `invoke`
+
 On the client side in Vue, simply start the `invoke` with the data:
 
-Example 6.4 `MainLayout.vue`:
+Example 6.5 `MainLayout.vue`:
 ```javascript
   import { invoke } from "@tauri-apps/api/tauri";
 
@@ -1041,6 +1133,71 @@ Example 6.4 `MainLayout.vue`:
 ...
 ```
 The `avatar` is determined on the client, that must be released for the access in the Tauri `tauri.conf.json`.
+
+### Client event listener
+
+The communication from rust to Vue (Javascript) is done via a listener. This is registered in `MainLayout.vue` at the time `create()` and requests at this point also the user data via `invoke`.
+
+Example 6.6
+```rust
+async created() {
+    console.log(`MainLayout created()`);
+
+    const that = this;
+
+    await listen('rs2js', (event) => {
+      try {
+        that.loading = false;
+
+        let data = JSON.parse(event.payload);
+        if (data.data) {
+          data.data = JSON.parse(data.data);
+        }
+
+        let { dataname: lDataName, data: lData, error: lError } = data;
+        console.log("listen rs2js event ", lDataName);
+
+        if (lError) {
+          that.$q.notify({
+            message: "Error: " + lError,
+            color: "negative",
+            icon: "warning",
+          });
+          console.error(`Error listen rs2js event ${lError}`)
+          return;
+        }
+
+        if (!lData || !lDataName) {
+          return;
+        }
+
+        if (lDataName == "me") {
+          that[lDataName] = lData;
+          if (that.me.email) {
+            that.me.avatar = that.getGravatarURL(that.me.email);
+          }
+        }
+
+        that.ServerData = { dataname: lDataName, data: lData, error: lError };
+      } catch (err) {
+        console.error("listener rs2js error ", err);
+      }
+      return;
+    });
+
+    this.loading = true;
+
+    invoke("js2rs", {
+      message: JSON.stringify({
+        path: "user",
+        query: "?json=true",
+        data: "me",
+      })
+    });
+
+  },
+```
+In this example, the variable `ServerData` is distributed to the other Vue Componets depending on which one is currently active.
 
    ***
 
