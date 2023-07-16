@@ -214,7 +214,7 @@ Here the database field `type` is mapped to the rust field `document_type`.
 
    ***
 
-## 3 Selection of data {#Selection}
+## Selection of data {#Selection}
 For the selection of data, a distinction must be made between two variants - on the one hand, a table can be accessed like an "object", on the other hand, an SQL-like query is available under `DSL`. This must be differentiated already when including the libraries.
 
 Example 3.1 Read a document for a document ID:
@@ -427,7 +427,7 @@ use url::Url;
     }
 ...
 ```
-The coding is not completely dynamic, because the used fields must have been defined in the structures of the database `schema.rs` and `models.modelrs`.
+The coding is not completely dynamic, because the used fields must have been defined in the structures of the database `schema.rs` and `models.rs`.
 Only the selection statemnt is dynamically assembled. In the example all conversions were also checked for validity by `match`, so that no `panic` is triggered, especially with transfer values from users. 
 
 ### function `debug_query` extracts the statement for the output {#debug_query}
@@ -507,7 +507,7 @@ It is a bit strange, but in the `where` condition the datatype is required to be
 
    ***
 
-## 4 Read PDF file to base64 conversion {#read_file}
+## Read PDF file to base64 conversion {#read_file}
 In my example the name and path of the PDF file is in the SQLite database. In the examples shown above the file name from field `file` and also the path from field `sub_path` is read to the document ID exactly for one document. The files are in the `home` directory in a main directory `MAIN_PATH` belonging to the program and in this then in a `FILE_PATH`. 
 
 Example 4.1 Definition of constants for the directories to be used in the `home` directory:
@@ -622,7 +622,7 @@ Example 4.4:
 ```
    ***
 
-## 5 Communication between Tauri and Vue {#Communication}
+## Communication between Tauri and Vue {#Communication}
 Finally an info about the communication between Tauri and Vue. For this I can recommend the very good documentation at [Rob Donnelly](https://rfdonnelly.github.io/posts/tauri-async-rust-process/).
 I have implemented this variant. The transfer from/to Vue is always done as `string` in the end, so all structures have to be converted in and out as `json` string.
 
@@ -720,7 +720,7 @@ pub struct Receiver {
 
    ***
 
-## 6 Data structures in the Tauri server `app_data` {#app_data}
+## Data structures in the Tauri server `app_data` {#app_data}
 In the Tauri - Vue communication, the tauri-handler contains a Stauts parameter that controls the processing of the channel.
 Similarly, in my application I need central information that the server manages and that should be available in the handlers, i.e., read, used or changed there and persistently saved. I decided to use a json file in the home directory. With the start of the server the data is read or, if the file does not exist, initialized and if the user maintains the data from the Vue application, the data should be written into the corresponding file.
 
@@ -1044,7 +1044,7 @@ The `avatar` is determined on the client, that must be released for the access i
 
    ***
 
-## 7 Conclusion {#Conclusion}
+## Conclusion {#Conclusion}
 
 Rust is like any other programming language: you have to study it to understand it. Some features allow elegant programming, others are incomprehensible and make it difficult to use. There is always light and shadow. For the error messages of the compiler you quickly get a feeling what you did wrong, it is merciless. The language could be more understandable and coherent in my opinion, other programming languages are much better.
 
