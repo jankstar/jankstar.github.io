@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Rust: Tauri &#43; Diesel &#43; SQLite # Small documentation, tips and experiences for accessing a SQLite database from Rust with the ORM library diesel.
+Complete and possibly extended code can be found in the repository archive_cat.
+Requirements # I use the following library
+[build-dependencies] tauri-build = { version = &#34;1.3&#34;, features = [] } [dependencies] tauri = { version = &#34;1.4.1&#34;, features = [&#34;shell-open&#34;, &#34;window-close&#34;] } serde = { version = &#34;1.">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light dark"><meta property="og:title" content="Rust: Tauri &#43; Diesel &#43; SQLite" />
+<meta property="og:description" content="Rust: Tauri &#43; Diesel &#43; SQLite # Small documentation, tips and experiences for accessing a SQLite database from Rust with the ORM library diesel.
+Complete and possibly extended code can be found in the repository archive_cat.
+Requirements # I use the following library
+[build-dependencies] tauri-build = { version = &#34;1.3&#34;, features = [] } [dependencies] tauri = { version = &#34;1.4.1&#34;, features = [&#34;shell-open&#34;, &#34;window-close&#34;] } serde = { version = &#34;1." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://jankstar.github.io/docs/tauri_diesel_sqlite/" /><meta property="article:section" content="docs" />
+<meta property="article:published_time" content="2023-07-16T13:38:28+02:00" />
+<meta property="article:modified_time" content="2023-07-16T13:38:28+02:00" />
+<title>Rust: Tauri &#43; Diesel &#43; SQLite | JanKStar</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.png" type="image/x-icon">
+<link rel="stylesheet" href="/book.min.33a48f5432973b8ff9a82679d9e45d67f2c15d4399bd2829269455cfe390b5e8.css" integrity="sha256-M6SPVDKXO4/5qCZ52eRdZ/LBXUOZvSgpJpRVz&#43;OQteg=" crossorigin="anonymous">
+  <script defer src="/flexsearch.min.js"></script>
+  <script defer src="/en.search.min.b079450e3bb22e2070009affe11d4b6c1dd39a4abf4ff694d7b84cf76eecce08.js" integrity="sha256-sHlFDjuyLiBwAJr/4R1LbB3Tmkq/T/aU17hM927szgg=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>JanKStar</span>
+  </a>
+</h2>
+
+
+<div class="book-search">
+  <input type="text" id="book-search-input" placeholder="Search" aria-label="Search" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/tauri_diesel_sqlite/" class="active">Rust: Tauri &#43; Diesel &#43; SQLite</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <strong>Rust: Tauri &#43; Diesel &#43; SQLite</strong>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#Connection">Connection with the database</a></li>
+    <li><a href="#Model_and_Schema">Model and schema</a></li>
+    <li><a href="#Selection">3 Selection of data</a>
+      <ul>
+        <li><a href="#debug_query">function <code>debug_query</code> extracts the statement for the output</a></li>
+        <li><a href="#count_sum">sql functions <code>count(*)</code> or <code>sum(amount)</code></a></li>
+      </ul>
+    </li>
+    <li><a href="#read_file">4 Read PDF file to base64 conversion</a></li>
+    <li><a href="#Communication">5 Communication between Tauri and Vue</a></li>
+    <li><a href="#app_data">6 Data structures in the Tauri server <code>app_data</code></a></li>
+    <li><a href="#Conclusion">7 Conclusion</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown"><h1 id="rust-tauri--diesel--sqlite">
+  Rust: Tauri + Diesel + SQLite
+  <a class="anchor" href="#rust-tauri--diesel--sqlite">#</a>
+</h1>
+<p>Small documentation, tips and experiences for accessing a SQLite database from Rust with the ORM library <code>diesel</code>.<br>
+Complete and possibly extended code can be found in the repository <a href="https://github.com/jankstar/archive_cat">archive_cat</a>.</p>
+<h2 id="requirements">
+  Requirements
+  <a class="anchor" href="#requirements">#</a>
+</h2>
+<p>I use the following library</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span>[<span style="color:#a6e22e">build-dependencies</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tauri-build</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;1.3&#34;</span>, <span style="color:#a6e22e">features</span> = [] }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>[<span style="color:#a6e22e">dependencies</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tauri</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;1.4.1&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;shell-open&#34;</span>, <span style="color:#e6db74">&#34;window-close&#34;</span>] }
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">serde</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;1.0&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;derive&#34;</span>] }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">serde_json</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;1.0&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;raw_value&#34;</span>] }
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">home</span> = <span style="color:#e6db74">&#34;0.5.5&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">diesel</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;2.1.0&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;sqlite&#34;</span>, <span style="color:#e6db74">&#34;64-column-tables&#34;</span>] }
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">dotenvy</span> = <span style="color:#e6db74">&#34;0.15.7&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">chrono</span> = <span style="color:#e6db74">&#34;0.4.26&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">url</span> = <span style="color:#e6db74">&#34;2.4.0&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tokio</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;1.28.2&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;full&#34;</span>] }
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tracing</span> = <span style="color:#e6db74">&#34;0.1.37&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">tracing-subscriber</span> = <span style="color:#e6db74">&#34;0.3.17&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">base64</span> = <span style="color:#e6db74">&#34;0.21.2&#34;</span>
+</span></span></code></pre></div><p>If necessary, install the libraries with <code>cargo add xxx</code>.</p>
+<p>For the tauri installation please look here <a href="https://tauri.app/">TAURI</a> and for <code>diesel</code> here <a href="https://diesel.rs/">diesel.rs</a>.</p>
+<hr>
+<h2 id="Connection">
+  Connection with the database
+  <a class="anchor" href="#Connection">#</a>
+</h2>
+<p>The usual way is the access via a <code>.env</code> file. The access is somewhat dependent on the database, i.e., there are also databases that support pool-connections.
+For SQLite, the <code>SqliteConnection::establish</code> function should be used.</p>
+<p>Example 1.1 <code>database.rs</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> std::env;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> dotenvy::dotenv;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing::info;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">establish_connection</span>() -&gt; <span style="color:#a6e22e">SqliteConnection</span> {
+</span></span><span style="display:flex;"><span>    info!(<span style="color:#e6db74">&#34;start establish_connection()&#34;</span>,);
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    dotenv().ok();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> database_url <span style="color:#f92672">=</span> env::var(<span style="color:#e6db74">&#34;DATABASE_URL&#34;</span>).expect(<span style="color:#e6db74">&#34;DATABASE_URL must be set&#34;</span>);
+</span></span><span style="display:flex;"><span>    SqliteConnection::establish(<span style="color:#f92672">&amp;</span>database_url)
+</span></span><span style="display:flex;"><span>        .unwrap_or_else(<span style="color:#f92672">|</span>_<span style="color:#f92672">|</span> panic!(<span style="color:#e6db74">&#34;Error connecting to the database: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>, database_url))
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Here the library <code>dotenvy</code> is taken for loading the <code>.env</code> file. The variable here has the name <code>DATABASE_URL</code>.</p>
+<p>Example <code>.env</code></p>
+<pre tabindex="0"><code>DATABASE_URL=sqlite:///Users/jankstar/tauri_database.db
+</code></pre><p>The database connection is then used as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::database::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection();
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span></code></pre></div><p>Alternatively, the user&rsquo;s <code>home</code> directory is accessed.</p>
+<p>Example 1.2 <code>database.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing::info;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> home::home_dir;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">establish_connection</span>(database_filename: <span style="color:#66d9ef">&amp;</span><span style="color:#66d9ef">str</span>) -&gt; <span style="color:#a6e22e">SqliteConnection</span> {
+</span></span><span style="display:flex;"><span>    info!(<span style="color:#e6db74">&#34;start establish_connection()&#34;</span>,);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> home_dir <span style="color:#f92672">=</span> home_dir().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>).to_string(); 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> database_url <span style="color:#f92672">=</span> format!(<span style="color:#e6db74">&#34;sqlite://</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>,home_dir.to_string_lossy(), database_filename);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    SqliteConnection::establish(<span style="color:#f92672">&amp;</span>database_url)
+</span></span><span style="display:flex;"><span>        .unwrap_or_else(<span style="color:#f92672">|</span>_<span style="color:#f92672">|</span> panic!(<span style="color:#e6db74">&#34;Error connecting to the database: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>, database_url))
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The database connection is then used as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::database::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection(<span style="color:#e6db74">&#34;tauri_database.db&#34;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span></code></pre></div><hr>
+<h2 id="Model_and_Schema">
+  Model and schema
+  <a class="anchor" href="#Model_and_Schema">#</a>
+</h2>
+<p>The model defines the structure and the schema the database table.
+There is also the possibility to generate the rust objects from the database.
+I proceeded like this, but I had to adjust certain fields and settings, so here I present the working result.</p>
+<p>Example 2.1 <code>models.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> chrono::NaiveDateTime;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::{ Insertable, Queryable, Selectable, Table};
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> serde::{Deserialize, Serialize};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#[derive(Serialize, Deserialize, Debug, Selectable, Insertable, Queryable)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#[diesel(table_name = crate::schema::document)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Document</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> id: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> subject: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> status: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> date: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> sender_name: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> sender_addr: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> recipient_name: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> recipient_addr: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> from: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> to: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> body: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> document_type: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> metadata: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> category: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> amount: Option<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">f64</span><span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> currency: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> template_name: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> doc_data: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> input_path: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> langu: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> num_pages: Option<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">f64</span><span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> protocol: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> sub_path: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> filename: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> file_extension: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> file: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> base64: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> ocr_data: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> jpg_file: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> parent_document: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> created_at: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> updated_at: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> deleted_at: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><code>schema.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>table! {
+</span></span><span style="display:flex;"><span>    document (id) {
+</span></span><span style="display:flex;"><span>        id -&gt; <span style="color:#a6e22e">Text</span>,
+</span></span><span style="display:flex;"><span>        subject -&gt; <span style="color:#a6e22e">Text</span>,
+</span></span><span style="display:flex;"><span>        status -&gt; <span style="color:#a6e22e">Text</span>,
+</span></span><span style="display:flex;"><span>        date -&gt; <span style="color:#a6e22e">Timestamp</span>,
+</span></span><span style="display:flex;"><span>        sender_name -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        sender_addr -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        recipient_name -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        recipient_addr -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        from -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        to -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        body -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#[sql_name = </span><span style="color:#e6db74">&#34;type&#34;</span><span style="color:#75715e">]</span>
+</span></span><span style="display:flex;"><span>        document_type -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        metadata -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        category -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        amount -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Double<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        currency -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        template_name -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        doc_data -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        input_path -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        langu -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        num_pages -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Double<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        protocol -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        sub_path -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        filename -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        file_extension -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        file -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        base64 -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        ocr_data -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        jpg_file -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        parent_document -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#[sql_name = </span><span style="color:#e6db74">&#34;createdAt&#34;</span><span style="color:#75715e">]</span>
+</span></span><span style="display:flex;"><span>        created_at -&gt; <span style="color:#a6e22e">Timestamp</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#[sql_name = </span><span style="color:#e6db74">&#34;updatedAt&#34;</span><span style="color:#75715e">]</span>
+</span></span><span style="display:flex;"><span>        updated_at -&gt; <span style="color:#a6e22e">Timestamp</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#[sql_name = </span><span style="color:#e6db74">&#34;deletedAt&#34;</span><span style="color:#75715e">]</span>
+</span></span><span style="display:flex;"><span>        deleted_at -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Timestamp<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>In this example, more than 32 fields have been defined in the <code>document</code> table. For this case, the <code>features</code> &ldquo;64-column-tables&rdquo; must be set in the <code>diesel</code>:
+<code>Cargo.toml</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-toml" data-lang="toml"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">diesel</span> = { <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;2.1.0&#34;</span>, <span style="color:#a6e22e">features</span> = [<span style="color:#e6db74">&#34;sqlite&#34;</span>, <span style="color:#e6db74">&#34;64-column-tables&#34;</span>] }
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>In addition, field names that are not defined snake_case or correspond to invalid syntax in rust, e.g. <code>type</code>, must be mapped.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span> <span style="color:#75715e">#[sql_name = </span><span style="color:#e6db74">&#34;type&#34;</span><span style="color:#75715e">]</span>
+</span></span><span style="display:flex;"><span> document_type -&gt; <span style="color:#a6e22e">Nullable</span><span style="color:#f92672">&lt;</span>Text<span style="color:#f92672">&gt;</span>,
+</span></span></code></pre></div><p>Here the database field <code>type</code> is mapped to the rust field <code>document_type</code>.</p>
+<hr>
+<h2 id="Selection">
+  3 Selection of data
+  <a class="anchor" href="#Selection">#</a>
+</h2>
+<p>For the selection of data, a distinction must be made between two variants - on the one hand, a table can be accessed like an &ldquo;object&rdquo;, on the other hand, an SQL-like query is available under <code>DSL</code>. This must be differentiated already when including the libraries.</p>
+<p>Example 3.1 Read a document for a document ID:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::database::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::models::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema;                <span style="color:#75715e">// like document
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema::document::dsl; <span style="color:#75715e">// like dsl::document
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema::Response;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> serde_json::json;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing::{info, warn, error};
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing_subscriber;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection(<span style="color:#e6db74">&#34;tauri_database.db&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> my_document <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> dsl::document   
+</span></span><span style="display:flex;"><span>            .filter(dsl::id.eq(my_query.id))
+</span></span><span style="display:flex;"><span>            .select(Document::as_select())
+</span></span><span style="display:flex;"><span>            .first::<span style="color:#f92672">&lt;</span>Document<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> conn)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            Ok(record) <span style="color:#f92672">=&gt;</span> record,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">format</span><span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{}&#34;</span>, err),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span></code></pre></div><p>In the example exactly one document with a certain ID is selected. The fields of the selection are specified in <code>.select()</code>, in the example all fields. The type of the result must be specified after <code>.first</code> and must necessarily match the fields from <code>.select</code>. Here it is very easy to define and select a subset of the fields using a separate structure. The definition of the structure has the advantage that also an object and if necessary a vector to this object can be defined.</p>
+<p>Example 3.2 - select only certain fields:
+<code>models.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[derive(Serialize, Deserialize, Debug, Selectable, Queryable)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#[diesel(table_name = crate::schema::document)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span>  <span style="color:#a6e22e">DocumentFile</span> { 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> id: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> sub_path: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> filename: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> file_extension: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> file: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> base64: Option<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection(<span style="color:#e6db74">&#34;tauri_database.db&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> my_document <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> dsl::document
+</span></span><span style="display:flex;"><span>            .filter(dsl::id.eq(my_query.id))
+</span></span><span style="display:flex;"><span>            .select(DocumentFile::as_select())
+</span></span><span style="display:flex;"><span>            .first::<span style="color:#f92672">&lt;</span>DocumentFile<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> conn)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            Ok(record) <span style="color:#f92672">=&gt;</span> record,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">format</span><span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{}&#34;</span>, err),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span></code></pre></div><p>An elegant variant for a dynamic selection is the definition <code>query</code> as <code>BoxedDsl</code>. This can be used to combine and dynamically generate <code>order_by()</code> or <code>filter()</code> sorts.
+In the following example, a URL is parsed dynamically and the selection conditions are built depending on the URL parameters. The notation is along the lines of `solr'.</p>
+<p>For example 3.3:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>http://localhost:8080/get_document?q=body:*Apple*<span style="color:#960050;background-color:#1e0010">&amp;</span>sort=date%20desc<span style="color:#960050;background-color:#1e0010">&amp;</span>rows=50
+</span></span></code></pre></div><p>In this example, the string <code>Apple</code> is to be searched for in the field <code>body</code>. The records are sorted by the field <code>date</code> in descending order and the first 50 records are selected.</p>
+<p>Example 3.4:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::database::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::models::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema::document::dsl;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema::Response;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> serde_json::json;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing::info;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing_subscriber;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> url::Url;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> parsed_url <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> Url::parse(<span style="color:#f92672">&amp;</span>my_query_url) {
+</span></span><span style="display:flex;"><span>        Ok(result) <span style="color:#f92672">=&gt;</span> result,
+</span></span><span style="display:flex;"><span>        Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>            dataname: <span style="color:#a6e22e">path</span>,
+</span></span><span style="display:flex;"><span>            data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>            error: <span style="color:#a6e22e">err</span>.to_string(),
+</span></span><span style="display:flex;"><span>        }}
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> query <span style="color:#f92672">=</span> dsl::document.into_boxed();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> limit <span style="color:#f92672">=</span> <span style="color:#ae81ff">50</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> search: String; <span style="color:#75715e">// = &#34;&#34;.to_string();
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>     <span style="color:#75715e">//loop via URL parameter
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">for</span> pair <span style="color:#66d9ef">in</span> parsed_url.query_pairs() {
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#f92672">?</span>pair, <span style="color:#e6db74">&#34;document url pair&#34;</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> pair.<span style="color:#ae81ff">0</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;rows&#34;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">//limit of rows parameter
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">match</span> pair.<span style="color:#ae81ff">1.</span>parse::<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">i64</span><span style="color:#f92672">&gt;</span>() {
+</span></span><span style="display:flex;"><span>                Ok(v) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    limit <span style="color:#f92672">=</span> v;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> pair.<span style="color:#ae81ff">0</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;sort&#34;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">//sort parameter
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> sort_field_iter <span style="color:#f92672">=</span> pair.<span style="color:#ae81ff">1.</span>split_whitespace();
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> sort_field_name <span style="color:#f92672">=</span>  sort_field_iter.next().unwrap_or(<span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;&#34;#</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> sort_field_order <span style="color:#f92672">=</span>  sort_field_iter.next().unwrap_or(<span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;&#34;#</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span> sort_field_name {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;date&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> sort_field_order <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;desc&#34;</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::date.desc());
+</span></span><span style="display:flex;"><span>                    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::date.asc());
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;subject&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> sort_field_order <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;desc&#34;</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::subject.desc())
+</span></span><span style="display:flex;"><span>                    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::subject.asc())
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;status&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> sort_field_order <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;desc&#34;</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::status.desc());
+</span></span><span style="display:flex;"><span>                    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::status.asc());
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;amount&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> sort_field_order <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;desc&#34;</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::amount.desc());
+</span></span><span style="display:flex;"><span>                    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                        query <span style="color:#f92672">=</span> query.order_by(dsl::amount.asc());
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                _ <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.order_by(dsl::date.desc()),
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> pair.<span style="color:#ae81ff">0</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;q&#34;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">//where parameter
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> filter_field_iter <span style="color:#f92672">=</span> pair.<span style="color:#ae81ff">1.</span>split(<span style="color:#e6db74">&#39;:&#39;</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> filter_field_name <span style="color:#f92672">=</span> filter_field_iter.next().unwrap_or(<span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;&#34;#</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> filter_field_match <span style="color:#f92672">=</span>  filter_field_iter.next().unwrap_or(<span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;&#34;#</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">//the `*`from the transfer string into placeholder `%`for the selection
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            search <span style="color:#f92672">=</span> String::from(<span style="color:#66d9ef">str</span>::replace(<span style="color:#f92672">&amp;</span>filter_field_match, <span style="color:#e6db74">&#34;*&#34;</span>, <span style="color:#e6db74">&#34;%&#34;</span>));
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span> filter_field_name {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;body&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::body.like(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;subject&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::subject.like(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;status&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::status.like(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;date&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::date.eq(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;amount&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">//Conversion of the transfer string into a number
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                    query <span style="color:#f92672">=</span> query.filter(dsl::amount.eq(search.parse::<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">f64</span><span style="color:#f92672">&gt;</span>().unwrap_or(<span style="color:#ae81ff">0_</span><span style="color:#66d9ef">f64</span>)))},
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;sender_name&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::sender_name.like(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;recipient_name&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::recipient_name.like(search)),
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#34;category&#34;</span> <span style="color:#f92672">=&gt;</span> query <span style="color:#f92672">=</span> query.filter(dsl::category.like(search)),
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection(<span style="color:#e6db74">&#34;tauri_database.db&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">match</span> query
+</span></span><span style="display:flex;"><span>        .limit(limit)
+</span></span><span style="display:flex;"><span>        .filter(dsl::deleted_at.is_null())
+</span></span><span style="display:flex;"><span>        .select(DocumentSmall::as_select())
+</span></span><span style="display:flex;"><span>        .load::<span style="color:#f92672">&lt;</span>DocumentSmall<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> conn)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        Ok(result) <span style="color:#f92672">=&gt;</span> Response {
+</span></span><span style="display:flex;"><span>            dataname: <span style="color:#a6e22e">path</span>,
+</span></span><span style="display:flex;"><span>            data: <span style="color:#a6e22e">json</span><span style="color:#f92672">!</span>(<span style="color:#f92672">&amp;</span>result).to_string(),
+</span></span><span style="display:flex;"><span>            error: String::from(<span style="color:#e6db74">&#34;&#34;</span>),
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>        Err(err) <span style="color:#f92672">=&gt;</span> Response {
+</span></span><span style="display:flex;"><span>            dataname: <span style="color:#a6e22e">path</span>,
+</span></span><span style="display:flex;"><span>            data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>            error: <span style="color:#a6e22e">err</span>.to_string(),
+</span></span><span style="display:flex;"><span>        },
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span></code></pre></div><p>The coding is not completely dynamic, because the used fields must have been defined in the structures of the database <code>schema.rs</code> and <code>models.modelrs</code>.
+Only the selection statemnt is dynamically assembled. In the example all conversions were also checked for validity by <code>match</code>, so that no <code>panic</code> is triggered, especially with transfer values from users.</p>
+<h3 id="debug_query">
+  function <code>debug_query</code> extracts the statement for the output
+  <a class="anchor" href="#debug_query">#</a>
+</h3>
+<p>There is also a function to output the generated SQL statement. In this case you separate selection and execution.</p>
+<p>Example 3.5:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::debug_query;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::diesel::sqlite::Sqlite;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing::{error, info, warn};
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> tracing_subscriber;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> conn <span style="color:#f92672">=</span> establish_connection(<span style="color:#e6db74">&#34;tauri_database.db&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> exec_query <span style="color:#f92672">=</span> dsl::document
+</span></span><span style="display:flex;"><span>            .filter(dsl::id.eq(my_query.id))
+</span></span><span style="display:flex;"><span>            .select(DocumentFile::as_select());
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#e6db74">&#34;debug sql</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">{}&#34;</span>, debug_query::<span style="color:#f92672">&lt;</span>Sqlite, _<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span>exec_query));
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> my_document <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> exec_query.first::<span style="color:#f92672">&lt;</span>DocumentFile<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> conn) {
+</span></span><span style="display:flex;"><span>            Ok(record) <span style="color:#f92672">=&gt;</span> record,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">format</span><span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{}&#34;</span>, err),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span></code></pre></div><p>The function <code>debug_query</code> extracts the statement for the output. Afterwards the execution and further processing of the data takes place.</p>
+<h3 id="count_sum">
+  sql functions <code>count(*)</code> or <code>sum(amount)</code>
+  <a class="anchor" href="#count_sum">#</a>
+</h3>
+<p>The standard functions in SQL for <code>count(*)</code> or <code>sum(x)</code> are available in <code>diesel</code>. But I only got the function <code>count(*)</code> to work, so here is the variant as native <code>sql</code>.</p>
+<p>Example 3.6:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::diesel::sqlite::Sqlite;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> <span style="color:#66d9ef">crate</span>::schema::document::dsl;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::debug_query;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::prelude::<span style="color:#f92672">*</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::dsl::sql;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">use</span> diesel::sql_types::Double;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> operation: <span style="color:#66d9ef">&amp;</span><span style="color:#66d9ef">str</span>;
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> path.as_str() <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;chart_count&#34;</span> {       <span style="color:#75715e">//parameter to control statement
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                    operation <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;count(id) AS count&#34;</span>;     <span style="color:#75715e">//count documents
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                    operation <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;sum(amount) AS sum&#34;</span>;     <span style="color:#75715e">//sum the amount
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> exec_query <span style="color:#f92672">=</span> document::table
+</span></span><span style="display:flex;"><span>                    .into_boxed()
+</span></span><span style="display:flex;"><span>                    .filter(
+</span></span><span style="display:flex;"><span>                        dsl::deleted_at
+</span></span><span style="display:flex;"><span>                            .is_null()
+</span></span><span style="display:flex;"><span>                            .and(dsl::date.le(local_start.to_string()))       <span style="color:#75715e">//date from/to start datetime
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                            .and(dsl::date.ge(local_end.to_string()))
+</span></span><span style="display:flex;"><span>                            .and(dsl::category.like(format!(<span style="color:#e6db74">&#34;%</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">%&#34;</span>, query)))  <span style="color:#75715e">//query contains the selected category
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                            .and(dsl::amount.is_not_null()),
+</span></span><span style="display:flex;"><span>                    )
+</span></span><span style="display:flex;"><span>                    .select(sql::<span style="color:#f92672">&lt;</span>Double<span style="color:#f92672">&gt;</span>(operation));
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                info!(<span style="color:#e6db74">&#34;debug first sql</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">{}&#34;</span>, debug_query::<span style="color:#f92672">&lt;</span>Sqlite, _<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span>exec_query));
+</span></span><span style="display:flex;"><span> 
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> y_value <span style="color:#f92672">=</span> exec_query.first::<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">f64</span><span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> conn).unwrap_or(<span style="color:#ae81ff">0_</span><span style="color:#66d9ef">f64</span>);
+</span></span></code></pre></div><p>It is a bit strange, but in the <code>where</code> condition the datatype is required to be <code>dubble</code>, because my field <code>amount</code> is of this type and the return value is <code>f64</code> - the values are converted between FromSql/ToSql and the application.</p>
+<hr>
+<h2 id="read_file">
+  4 Read PDF file to base64 conversion
+  <a class="anchor" href="#read_file">#</a>
+</h2>
+<p>In my example the name and path of the PDF file is in the SQLite database. In the examples shown above the file name from field <code>file</code> and also the path from field <code>sub_path</code> is read to the document ID exactly for one document. The files are in the <code>home</code> directory in a main directory <code>MAIN_PATH</code> belonging to the program and in this then in a <code>FILE_PATH</code>.</p>
+<p>Example 4.1 Definition of constants for the directories to be used in the <code>home</code> directory:
+<code>database.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">MAIN_PATH</span>: <span style="color:#66d9ef">&amp;</span><span style="color:#66d9ef">str</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;archive&#34;#</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">DATABASE_NAME</span>: <span style="color:#66d9ef">&amp;</span><span style="color:#66d9ef">str</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;tauri_database.db&#34;#</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">FILE_PATH</span>: <span style="color:#66d9ef">&amp;</span><span style="color:#66d9ef">str</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">r</span><span style="color:#e6db74">#&#34;data&#34;#</span>;
+</span></span></code></pre></div><p>After the selection of the data from the database the following determination of the <code>home</code> directory takes place:</p>
+<p>Example 4.2:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>        info!(<span style="color:#f92672">?</span>my_document.id, <span style="color:#e6db74">&#34;select document id&#34;</span> );
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#f92672">?</span>my_document.sub_path, <span style="color:#e6db74">&#34;select document subpath&#34;</span> );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">use</span> home::home_dir;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> home_dir <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> home_dir() {
+</span></span><span style="display:flex;"><span>            Some(result) <span style="color:#f92672">=&gt;</span> result,
+</span></span><span style="display:flex;"><span>            None <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">r</span>#<span style="color:#e6db74">&#34;no pdf found&#34;</span>#.to_string(),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> filename <span style="color:#f92672">=</span> my_document.file.unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>.to_string());
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> filename.is_empty() {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                error: <span style="color:#a6e22e">r</span>#<span style="color:#e6db74">&#34;no pdf found&#34;</span>#.to_string(),
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//Build PDF Filenames
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> pdf_file <span style="color:#f92672">=</span> format!(
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}{}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>            home_dir.to_str().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>).to_string(),
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">MAIN_PATH</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">FILE_PATH</span>,
+</span></span><span style="display:flex;"><span>            my_document.sub_path.unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>.to_string()),
+</span></span><span style="display:flex;"><span>            filename
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#f92672">?</span>pdf_file, <span style="color:#e6db74">&#34;select document file&#34;</span>);
+</span></span></code></pre></div><p>At the end <code>pdf_file</code> contains the complete path for accessing the file, so that now the file can be opened and loaded as binary into a variable <code>list_of_chunks</code> of type <code>Vec&lt;u8&gt;</code>.</p>
+<p>Example 4.3:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>        <span style="color:#75715e">//open file by name
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> file <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> std::fs::File::open(<span style="color:#f92672">&amp;</span>pdf_file) {
+</span></span><span style="display:flex;"><span>            Ok(file) <span style="color:#f92672">=&gt;</span> file,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">format</span><span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{}&#34;</span>, err),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#f92672">?</span>filename, <span style="color:#e6db74">&#34;open file by name &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//Read PDF as binary file
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">use</span> std::io::{self, Read, Seek, SeekFrom};
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> list_of_chunks <span style="color:#f92672">=</span> Vec::new();
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> chunk_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4000</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">loop</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> chunk <span style="color:#f92672">=</span> Vec::with_capacity(chunk_size);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> n <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> file
+</span></span><span style="display:flex;"><span>                .by_ref()
+</span></span><span style="display:flex;"><span>                .take(chunk_size <span style="color:#66d9ef">as</span> <span style="color:#66d9ef">u64</span>)
+</span></span><span style="display:flex;"><span>                .read_to_end(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> chunk)
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                Ok(data) <span style="color:#f92672">=&gt;</span> data,
+</span></span><span style="display:flex;"><span>                Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    info!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;error file read&#34;</span>);
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> n <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">for</span> ele <span style="color:#66d9ef">in</span> chunk {
+</span></span><span style="display:flex;"><span>                list_of_chunks.push(ele);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> n <span style="color:#f92672">&lt;</span> chunk_size {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span></code></pre></div><p>The data from the PDF file is now in <code>list_of_chunks</code> and is converted to <code>base64</code> and returned.</p>
+<p>Example 4.4:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span>       <span style="color:#66d9ef">if</span> list_of_chunks.len() <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">//binary encode to base64
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">use</span> base64::{engine::general_purpose, Engine <span style="color:#66d9ef">as</span> _};
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> base64_data <span style="color:#f92672">=</span> general_purpose::<span style="color:#66d9ef">STANDARD_NO_PAD</span>.encode(list_of_chunks);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                data: <span style="color:#a6e22e">json</span><span style="color:#f92672">!</span>(<span style="color:#f92672">&amp;</span>base64_data).to_string(),
+</span></span><span style="display:flex;"><span>                error: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>            };
+</span></span></code></pre></div><hr>
+<h2 id="Communication">
+  5 Communication between Tauri and Vue
+  <a class="anchor" href="#Communication">#</a>
+</h2>
+<p>Finally an info about the communication between Tauri and Vue. For this I can recommend the very good documentation at <a href="https://rfdonnelly.github.io/posts/tauri-async-rust-process/">Rob Donnelly</a>.
+I have implemented this variant. The transfer from/to Vue is always done as <code>string</code> in the end, so all structures have to be converted in and out as <code>json</code> string.</p>
+<p>Example 5.1 Vue javascript file to call Tauri</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span>  <span style="color:#66d9ef">import</span> { <span style="color:#a6e22e">invoke</span> } <span style="color:#a6e22e">from</span> <span style="color:#e6db74">&#34;@tauri-apps/api/tauri&#34;</span>;
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">invoke</span>(<span style="color:#e6db74">&#34;js2rs&#34;</span>, {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">message</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>({
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">path</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;category&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">query</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;?json=true&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">data</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;category&#34;</span>,
+</span></span><span style="display:flex;"><span>        }),
+</span></span><span style="display:flex;"><span>      });
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>In my example, the <code>message</code> field is transmitted as a JSON string and then needs to be parsed in Tauri into the <code>path</code>, <code>query</code> and <code>data</code> components.</p>
+<p>Example 5.2 Tauri command  for the <code>invoke</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[tauri::command]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">js2rs</span>(message: String, state: <span style="color:#a6e22e">tauri</span>::State<span style="color:#f92672">&lt;</span>&#39;_, AsyncProcInputTx<span style="color:#f92672">&gt;</span>) -&gt; Result<span style="color:#f92672">&lt;</span>(), String<span style="color:#f92672">&gt;</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> sub_message <span style="color:#f92672">=</span> message.clone();
+</span></span><span style="display:flex;"><span>    sub_message.truncate(<span style="color:#ae81ff">50</span>);
+</span></span><span style="display:flex;"><span>    info!(<span style="color:#f92672">?</span>sub_message, <span style="color:#e6db74">&#34;js2rs&#34;</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> async_proc_input_tx <span style="color:#f92672">=</span> state.inner.lock().<span style="color:#66d9ef">await</span>;
+</span></span><span style="display:flex;"><span>    async_proc_input_tx.send(message).<span style="color:#66d9ef">await</span>.map_err(<span style="color:#f92672">|</span>e<span style="color:#f92672">|</span> {
+</span></span><span style="display:flex;"><span>        println!(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>, e.to_string());
+</span></span><span style="display:flex;"><span>        e.to_string()
+</span></span><span style="display:flex;"><span>    })
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Here the string is sent into the channel <code>async_proc_input_tx</code> to be processed one after the other.</p>
+<p>Example 5.2.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">async_process_model</span>(
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">mut</span> input_rx: <span style="color:#a6e22e">mpsc</span>::Receiver<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    output_tx: <span style="color:#a6e22e">mpsc</span>::Sender<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>) -&gt; Result<span style="color:#f92672">&lt;</span>(), Box<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">dyn</span> std::error::Error <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> Sync<span style="color:#f92672">&gt;&gt;</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> <span style="color:#66d9ef">let</span> Some(input) <span style="color:#f92672">=</span> input_rx.recv().<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> parse_error <span style="color:#f92672">=</span> <span style="color:#66d9ef">false</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> my_input_data: <span style="color:#a6e22e">Receiver</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> serde_json::from_str(input.as_str()) {
+</span></span><span style="display:flex;"><span>            Ok(data) <span style="color:#f92672">=&gt;</span> data,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                parse_error <span style="color:#f92672">=</span> <span style="color:#66d9ef">true</span>;
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> my_output_data <span style="color:#f92672">=</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">err</span>.to_string()
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> output <span style="color:#f92672">=</span> json!(my_output_data).to_string();
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">match</span> output_tx.send(output).<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>                    _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                Receiver {
+</span></span><span style="display:flex;"><span>                    path: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    query: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string()
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">!</span>parse_error {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> my_output_data: <span style="color:#a6e22e">Response</span> <span style="color:#f92672">=</span>
+</span></span><span style="display:flex;"><span>                message_handler(my_input_data.path, my_input_data.query, my_input_data.data).<span style="color:#66d9ef">await</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> output <span style="color:#f92672">=</span> json!(my_output_data).to_string();
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span> output_tx.send(output).<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>                _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        } 
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    Ok(())
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>There are the following structures in my example that are converted between Tauri and Vue:</p>
+<p>Example 5.3. from <code>schema.rs</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[derive(serde::Serialize, Debug)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Response</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> dataname: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> data: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> error: String,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#[derive(serde::Serialize, serde::Deserialize, Debug)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Receiver</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> path: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> query: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> data: String,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h2 id="app_data">
+  6 Data structures in the Tauri server <code>app_data</code>
+  <a class="anchor" href="#app_data">#</a>
+</h2>
+<p>In the Tauri - Vue communication, the tauri-handler contains a Stauts parameter that controls the processing of the channel.
+Similarly, in my application I need central information that the server manages and that should be available in the handlers, i.e., read, used or changed there and persistently saved. I decided to use a json file in the home directory. With the start of the server the data is read or, if the file does not exist, initialized and if the user maintains the data from the Vue application, the data should be written into the corresponding file.</p>
+<p>First we need the data structure and the functions for reading, changing and saving.</p>
+<p>Example 6.1 <code>main.rs</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[derive(serde::Serialize, serde::Deserialize, Debug)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AppData</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> main_path: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> email: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> name: String,
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> clone_dir: String,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">impl</span> AppData {
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">//constructor from `app_data` as clone() 
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">new</span>(app_data: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">AppData</span>) -&gt; <span style="color:#a6e22e">Self</span> {
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#e6db74">&#34;AppData new()&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        AppData {
+</span></span><span style="display:flex;"><span>            main_path: <span style="color:#a6e22e">app_data</span>.main_path.clone(),
+</span></span><span style="display:flex;"><span>            email: <span style="color:#a6e22e">app_data</span>.email.clone(),
+</span></span><span style="display:flex;"><span>            name: <span style="color:#a6e22e">app_data</span>.name.clone(),
+</span></span><span style="display:flex;"><span>            clone_dir: <span style="color:#a6e22e">app_data</span>.clone_dir.clone(),
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">//constructor from file 
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">init_app_data</span>() -&gt; <span style="color:#a6e22e">Self</span> {
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#e6db74">&#34;AppData init_app_data()&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> home_dir <span style="color:#f92672">=</span> home_dir().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>.into());
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> file_and_path <span style="color:#f92672">=</span> format!(
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>            home_dir.to_str().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>).to_string(),
+</span></span><span style="display:flex;"><span>            database::<span style="color:#66d9ef">APP_DATA_FILENAME</span>
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">use</span> std::fs::read_to_string;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> app_data_string <span style="color:#f92672">=</span> read_to_string(file_and_path).unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>.to_string());
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> app_data <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> serde_json::from_str(<span style="color:#f92672">&amp;</span>app_data_string) {
+</span></span><span style="display:flex;"><span>            Ok(result) <span style="color:#f92672">=&gt;</span> result,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>                AppData {
+</span></span><span style="display:flex;"><span>                    main_path: <span style="color:#a6e22e">database</span>::<span style="color:#66d9ef">MAIN_PATH</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    email: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    name: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    clone_dir: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> app_data;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">set</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self, main_path: String, email: String, name: String, clone_dir: String) {
+</span></span><span style="display:flex;"><span>        self.main_path <span style="color:#f92672">=</span> main_path;
+</span></span><span style="display:flex;"><span>        self.email <span style="color:#f92672">=</span> email;
+</span></span><span style="display:flex;"><span>        self.name <span style="color:#f92672">=</span> name;
+</span></span><span style="display:flex;"><span>        self.clone_dir <span style="color:#f92672">=</span> clone_dir;
+</span></span><span style="display:flex;"><span>        self.save_me();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">save_me</span>(<span style="color:#f92672">&amp;</span>self) {
+</span></span><span style="display:flex;"><span>        info!(<span style="color:#e6db74">&#34;AppData save_me()&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> home_dir <span style="color:#f92672">=</span> home_dir().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>.into());
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> file_and_path <span style="color:#f92672">=</span> format!(
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>            home_dir.to_str().unwrap_or(<span style="color:#e6db74">&#34;&#34;</span>).to_string(),
+</span></span><span style="display:flex;"><span>            database::<span style="color:#66d9ef">APP_DATA_FILENAME</span>
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> app_data_json <span style="color:#f92672">=</span> json!(self).to_string();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">match</span> fs::write(file_and_path, app_data_json) {
+</span></span><span style="display:flex;"><span>            Ok(_) <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>There are two <code>constuctor</code> here - once with <code>new(data)</code> a new object is created over the passed data, on the other hand with the function <code>init_app_data()</code>, here we read from the file and generate the object. In both cases the instance of <code>AppData</code> is returned.</p>
+<p>The file itself with the data from <code>AppData</code> is always read or written into the <code>home</code> directory with the name defined as from <code>APP_DATA_FILENAME</code>.
+There is now the function <code>set(data)</code> which also calls <code>save_me()</code> and finally saves the data as a <code>json</code> file.</p>
+<p>In the <code>main</code> routine in the tauri server, the object can be passed via <code>manage()</code> and is then available optinally as a parameter in dan tauri-handlers.</p>
+<p>Example 6.2:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
+</span></span><span style="display:flex;"><span>    tracing_subscriber::fmt::init();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    generate_directory_database();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> (async_proc_input_tx, async_proc_input_rx) <span style="color:#f92672">=</span> mpsc::channel(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> (async_proc_output_tx, <span style="color:#66d9ef">mut</span> async_proc_output_rx) <span style="color:#f92672">=</span> mpsc::channel(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    tauri::Builder::default()
+</span></span><span style="display:flex;"><span>        .manage(AsyncProcInputTx {                         <span style="color:#75715e">// Mutex to manage
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            inner: <span style="color:#a6e22e">Mutex</span>::new(async_proc_input_tx),
+</span></span><span style="display:flex;"><span>        })
+</span></span><span style="display:flex;"><span>        .manage(AppData::init_app_data())                  <span style="color:#75715e">// AppData to manage
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        .invoke_handler(tauri::generate_handler![js2rs])   <span style="color:#75715e">// tauri handler
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        .setup(<span style="color:#f92672">|</span>app<span style="color:#f92672">|</span> {
+</span></span><span style="display:flex;"><span>            tauri::async_runtime::spawn(<span style="color:#66d9ef">async</span> <span style="color:#66d9ef">move</span> {
+</span></span><span style="display:flex;"><span>                async_process_model(async_proc_input_rx, async_proc_output_tx).<span style="color:#66d9ef">await</span>
+</span></span><span style="display:flex;"><span>            });
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> app_handle <span style="color:#f92672">=</span> app.handle();
+</span></span><span style="display:flex;"><span>            tauri::async_runtime::spawn(<span style="color:#66d9ef">async</span> <span style="color:#66d9ef">move</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">loop</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> <span style="color:#66d9ef">let</span> Some(output) <span style="color:#f92672">=</span> async_proc_output_rx.recv().<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>                        rs2js(output, <span style="color:#f92672">&amp;</span>app_handle);
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            });
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            Ok(())
+</span></span><span style="display:flex;"><span>        })
+</span></span><span style="display:flex;"><span>        .run(tauri::generate_context!())
+</span></span><span style="display:flex;"><span>        .expect(<span style="color:#e6db74">&#34;error while running tauri application&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The tauri handler <code>js2rs</code> can now receive the new parameter:</p>
+<p>Example 6.2:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[tauri::command]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">js2rs</span>(
+</span></span><span style="display:flex;"><span>    message: String,
+</span></span><span style="display:flex;"><span>    state: <span style="color:#a6e22e">tauri</span>::State<span style="color:#f92672">&lt;</span>&#39;_, AsyncProcInputTx<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>    app_data: <span style="color:#a6e22e">tauri</span>::State<span style="color:#f92672">&lt;</span>&#39;_, AppData<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>) -&gt; Result<span style="color:#f92672">&lt;</span>(), String<span style="color:#f92672">&gt;</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> sub_message <span style="color:#f92672">=</span> message.clone();
+</span></span><span style="display:flex;"><span>    sub_message.truncate(<span style="color:#ae81ff">50</span>);
+</span></span><span style="display:flex;"><span>    info!(<span style="color:#f92672">?</span>sub_message, <span style="color:#e6db74">&#34;js2rs&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> async_proc_input_tx <span style="color:#f92672">=</span> state.inner.lock().<span style="color:#66d9ef">await</span>;
+</span></span><span style="display:flex;"><span>    async_proc_input_tx
+</span></span><span style="display:flex;"><span>        .send((message, AppData::new(app_data.inner())))
+</span></span><span style="display:flex;"><span>        .<span style="color:#66d9ef">await</span>
+</span></span><span style="display:flex;"><span>        .map_err(<span style="color:#f92672">|</span>e<span style="color:#f92672">|</span> {
+</span></span><span style="display:flex;"><span>            println!(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>, e.to_string());
+</span></span><span style="display:flex;"><span>            e.to_string()
+</span></span><span style="display:flex;"><span>        })
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Because at this point processing does not yet take place, but the data is first passed into a channel for asynchronous processing, the Message and AppData must be passed as tuples and the type of the Input parameter must also be adjusted.</p>
+<p>Example 6.2:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AsyncProcInputTx</span> {
+</span></span><span style="display:flex;"><span>    inner: <span style="color:#a6e22e">Mutex</span><span style="color:#f92672">&lt;</span>mpsc::Sender<span style="color:#f92672">&lt;</span>(String, AppData)<span style="color:#f92672">&gt;&gt;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">async_process_model</span>(
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">mut</span> input_rx: <span style="color:#a6e22e">mpsc</span>::Receiver<span style="color:#f92672">&lt;</span>(String, AppData)<span style="color:#f92672">&gt;</span>,     <span style="color:#75715e">//input tuple with AppData
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    output_tx: <span style="color:#a6e22e">mpsc</span>::Sender<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>,
+</span></span><span style="display:flex;"><span>) -&gt; Result<span style="color:#f92672">&lt;</span>(), Box<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">dyn</span> std::error::Error <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> Sync<span style="color:#f92672">&gt;&gt;</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> <span style="color:#66d9ef">let</span> Some((message, app_data)) <span style="color:#f92672">=</span> input_rx.recv().<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> parse_error <span style="color:#f92672">=</span> <span style="color:#66d9ef">false</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> my_message_data: <span style="color:#a6e22e">Receiver</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> serde_json::from_str(message.as_str()) {
+</span></span><span style="display:flex;"><span>            Ok(data) <span style="color:#f92672">=&gt;</span> data,
+</span></span><span style="display:flex;"><span>            Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                parse_error <span style="color:#f92672">=</span> <span style="color:#66d9ef">true</span>;
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> my_output_data <span style="color:#f92672">=</span> Response {
+</span></span><span style="display:flex;"><span>                    dataname: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    error: <span style="color:#a6e22e">err</span>.to_string(),
+</span></span><span style="display:flex;"><span>                };
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">let</span> output <span style="color:#f92672">=</span> json!(my_output_data).to_string();
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">match</span> output_tx.send(output).<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>                    _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>                Receiver {
+</span></span><span style="display:flex;"><span>                    path: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    query: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                    data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">!</span>parse_error {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> my_output_data: <span style="color:#a6e22e">Response</span> <span style="color:#f92672">=</span> message_handler(
+</span></span><span style="display:flex;"><span>                app_data,                                     <span style="color:#75715e">//app_data as parameter
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                my_message_data.path,
+</span></span><span style="display:flex;"><span>                my_message_data.query,
+</span></span><span style="display:flex;"><span>                my_message_data.data,
+</span></span><span style="display:flex;"><span>            )
+</span></span><span style="display:flex;"><span>            .<span style="color:#66d9ef">await</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> output <span style="color:#f92672">=</span> json!(my_output_data).to_string();
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">match</span> output_tx.send(output).<span style="color:#66d9ef">await</span> {
+</span></span><span style="display:flex;"><span>                _ <span style="color:#f92672">=&gt;</span> {}
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    Ok(())
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>To do this, the channel and also the <code>async_process_model</code> function must be adapted accordingly and the <code>app_Data</code> parameter extended.</p>
+<p>In the tauri handler itself the object AppData can then be used. In my example there is <code>user</code> for reading and <code>save_user</code> for saving from the application.</p>
+<p>Example 6.3.:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-rust" data-lang="rust"><span style="display:flex;"><span><span style="color:#75715e">#[tauri::command(async)]</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">message_handler</span>(
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">//window: tauri::Window,
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#75715e">//database: tauri::State&lt;&#39;_, Database&gt;,
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">mut</span> app_data: <span style="color:#a6e22e">AppData</span>,
+</span></span><span style="display:flex;"><span>    path: String,
+</span></span><span style="display:flex;"><span>    query: String,
+</span></span><span style="display:flex;"><span>    data: String,
+</span></span><span style="display:flex;"><span>) -&gt; <span style="color:#a6e22e">Response</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> message <span style="color:#f92672">=</span> format!(
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;path: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">, query: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">, data: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>        path.as_str().clone(),
+</span></span><span style="display:flex;"><span>        query.as_str().clone(),
+</span></span><span style="display:flex;"><span>        data.as_str().clone()
+</span></span><span style="display:flex;"><span>    );
+</span></span><span style="display:flex;"><span>    info!(message, <span style="color:#e6db74">&#34;message_handler&#34;</span>);
+</span></span><span style="display:flex;"><span>    io::stdout().flush().unwrap();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">match</span> path.as_str() {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//----
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#e6db74">&#34;user&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> home_dir <span style="color:#f92672">=</span> home_dir().unwrap();
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> message <span style="color:#f92672">=</span> format!(<span style="color:#e6db74">&#34;Your home directory, probably: </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span>, home_dir.display());
+</span></span><span style="display:flex;"><span>            info!(message, <span style="color:#e6db74">&#34;message_handler&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> my_data <span style="color:#f92672">=</span> json!( UserData {
+</span></span><span style="display:flex;"><span>                email: <span style="color:#a6e22e">app_data</span>.email,
+</span></span><span style="display:flex;"><span>                name: <span style="color:#a6e22e">app_data</span>.name,
+</span></span><span style="display:flex;"><span>                path_name: <span style="color:#a6e22e">app_data</span>.main_path,
+</span></span><span style="display:flex;"><span>                clone_path: <span style="color:#a6e22e">app_data</span>.clone_dir,
+</span></span><span style="display:flex;"><span>                avatar: <span style="color:#e6db74">&#34;&#34;</span>.to_string()
+</span></span><span style="display:flex;"><span>            }).to_string();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            Response {
+</span></span><span style="display:flex;"><span>                dataname: <span style="color:#e6db74">&#34;me&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                data: <span style="color:#a6e22e">my_data</span>,
+</span></span><span style="display:flex;"><span>                error: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">//----
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#e6db74">&#34;save_user&#34;</span> <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> my_save_user_data: <span style="color:#a6e22e">SaveUserCommand</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> serde_json::from_str(<span style="color:#f92672">&amp;</span>data) {
+</span></span><span style="display:flex;"><span>                Ok(result) <span style="color:#f92672">=&gt;</span> result,
+</span></span><span style="display:flex;"><span>                Err(err) <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                    error!(<span style="color:#f92672">?</span>err, <span style="color:#e6db74">&#34;Error: &#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> Response {
+</span></span><span style="display:flex;"><span>                        dataname: <span style="color:#a6e22e">data</span>,
+</span></span><span style="display:flex;"><span>                        data: <span style="color:#e6db74">&#34;[]&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                        error: <span style="color:#a6e22e">format</span><span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{}&#34;</span>, err),
+</span></span><span style="display:flex;"><span>                    };
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            app_data.set(
+</span></span><span style="display:flex;"><span>                my_user_data.path_name.clone(),
+</span></span><span style="display:flex;"><span>                my_user_data.email.clone(),
+</span></span><span style="display:flex;"><span>                my_user_data.name.clone(),
+</span></span><span style="display:flex;"><span>                my_user_data.clone_path.clone(),
+</span></span><span style="display:flex;"><span>            );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">let</span> my_data <span style="color:#f92672">=</span> json!(my_user_data).to_string();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            Response {
+</span></span><span style="display:flex;"><span>                dataname: <span style="color:#e6db74">&#34;me&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>                data: <span style="color:#a6e22e">my_data</span>,
+</span></span><span style="display:flex;"><span>                error: <span style="color:#e6db74">&#34;&#34;</span>.to_string(),
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">..</span>.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The <code>save_user</code> for the function <code>set(data)</code> off, which then also writes the data to the <code>home</code> directory, so that after a restart this data can be read.</p>
+<p>On the client side in Vue, simply start the <code>invoke</code> with the data:</p>
+<p>Example 6.4 <code>MainLayout.vue</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span>  <span style="color:#66d9ef">import</span> { <span style="color:#a6e22e">invoke</span> } <span style="color:#a6e22e">from</span> <span style="color:#e6db74">&#34;@tauri-apps/api/tauri&#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">saveDialogMe</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`MainLayout saveDialogMe()`</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">name</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dialogMeData</span>.<span style="color:#a6e22e">name</span> <span style="color:#f92672">||</span> <span style="color:#e6db74">&#34;&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">email</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dialogMeData</span>.<span style="color:#a6e22e">email</span> <span style="color:#f92672">||</span> <span style="color:#e6db74">&#34;&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">path_name</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dialogMeData</span>.<span style="color:#a6e22e">path_name</span> <span style="color:#f92672">||</span> <span style="color:#e6db74">&#34;&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">clone_path</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dialogMeData</span>.<span style="color:#a6e22e">clone_path</span> <span style="color:#f92672">||</span> <span style="color:#e6db74">&#34;&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">avatar</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getGravatarURL</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>.<span style="color:#a6e22e">email</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">invoke</span>(<span style="color:#e6db74">&#34;js2rs&#34;</span>, {
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">message</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>({
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">path</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;save_user&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">query</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#34;&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">data</span><span style="color:#f92672">:</span> <span style="color:#a6e22e">JSON</span>.<span style="color:#a6e22e">stringify</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">me</span>),
+</span></span><span style="display:flex;"><span>        })});
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dialogMe</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">false</span>;
+</span></span><span style="display:flex;"><span>      },
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>The <code>avatar</code> is determined on the client, that must be released for the access in the Tauri <code>tauri.conf.json</code>.</p>
+<hr>
+<h2 id="Conclusion">
+  7 Conclusion
+  <a class="anchor" href="#Conclusion">#</a>
+</h2>
+<p>Rust is like any other programming language: you have to study it to understand it. Some features allow elegant programming, others are incomprehensible and make it difficult to use. There is always light and shadow. For the error messages of the compiler you quickly get a feeling what you did wrong, it is merciless. The language could be more understandable and coherent in my opinion, other programming languages are much better.</p>
+<p>Dynamic parameters and also the forced error handling are really good. It creates a robust program, even if it takes a little longer.
+The channels reminded me of golang, but the powerful <code>promise</code> from JavaScript is not nearly reached.</p>
+<p>Some of the libraries are still in their infancy, it will take some time to establish stability for productive use, but the path is the right one.
+In some places, one wishes for better documentation and more examples - which is what I tried to do with this post.</p>
+<p>Thanks to the hardworking developers of <code>diesel</code>and <code>tauri</code>- it was fun and I will continue down the path because you can&rsquo;t process media data in Electron for example and that runs in tauri, that&rsquo;s my next project.</p>
+<p><a href="https://jankstar.github.io/index">Index</a></p>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#Connection">Connection with the database</a></li>
+    <li><a href="#Model_and_Schema">Model and schema</a></li>
+    <li><a href="#Selection">3 Selection of data</a>
+      <ul>
+        <li><a href="#debug_query">function <code>debug_query</code> extracts the statement for the output</a></li>
+        <li><a href="#count_sum">sql functions <code>count(*)</code> or <code>sum(amount)</code></a></li>
+      </ul>
+    </li>
+    <li><a href="#read_file">4 Read PDF file to base64 conversion</a></li>
+    <li><a href="#Communication">5 Communication between Tauri and Vue</a></li>
+    <li><a href="#app_data">6 Data structures in the Tauri server <code>app_data</code></a></li>
+    <li><a href="#Conclusion">7 Conclusion</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

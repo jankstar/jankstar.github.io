@@ -1,7 +1,6 @@
 ---
 title: "Rust: Tauri + Diesel + SQLite"
 date: 2023-07-16T13:38:28+02:00
-draft: true
 type: docs
 weight: 1
 ---
