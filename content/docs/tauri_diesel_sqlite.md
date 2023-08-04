@@ -2,7 +2,7 @@
 title: "Rust: Tauri + Diesel + SQLite"
 date: 2023-07-16T13:38:28+02:00
 type: docs
-weight: 1
+weight: 202307
 ---
 # Rust: Tauri + Diesel + SQLite
 
@@ -585,6 +585,152 @@ use diesel::sql_types::Double;
 
 ```
 It is a bit strange, but in the `where` condition the datatype is required to be `dubble`, because my field `amount` is of this type and the return value is `f64` - the values are converted between FromSql/ToSql and the application.
+
+## insert and update function
+
+For an insert, the structure 'Insertable' must be entered.
+
+Example 3.7:
+```rust
+...
+#[derive(Serialize, Deserialize, Debug, Selectable, Insertable, Queryable, AsChangeset)]
+#[diesel(table_name = crate::schema::document)]
+pub struct Document {
+    pub id: String,
+    pub subject: String,
+    pub status: String,
+    pub date: String,
+    ...
+}
+```
+
+Subsequently, with an 'insert' and specification of the complete struture, processing can take place.
+
+Example 3.8:
+```rust
+ match insert_into(document::dsl::document)
+                .values(Document {
+                    id: my_id,
+                    subject: ele.subject.clone(),
+                    status: ele.status.clone(),
+                    date: ele.date.clone(),
+                    sender_name: ele.sender_name.clone(),
+                    sender_addr: ele.sender_addr.clone(),
+                    recipient_name: ele.recipient_name.clone(),
+                    recipient_addr: ele.recipient_addr.clone(),
+                    from: Some(json!(from_partner).to_string()),
+                    to: Some(json!(to_partner).to_string()),
+                    body: ele.body.clone(),
+                    document_type: Some("PDF".to_string()),
+                    metadata: None,
+                    //replace {} in []
+                    category: Some(category_array.clone()),
+                    //value round to 2 decimal places
+                    amount: Some(amount_round),
+                    currency: ele.currency.clone(),
+                    template_name: ele.template_name.clone(),
+                    doc_data: None,
+                    input_path: ele.input_path.clone(),
+                    langu: Some("DE".to_string()),
+                    num_pages: None,
+                    protocol: ele.protocol.clone(),
+                    sub_path: ele.sub_path.clone(),
+                    filename: data_attachment.filename.clone(),
+                    file_extension: None,
+                    file: data_attachment.file.clone(),
+                    base64: None,
+                    ocr_data: data_attachment.ocr_data.clone(),
+                    jpg_file: Some(conv_obj_to_array(
+                        data_attachment.jpg_file.clone().unwrap_or("[]".to_string()),
+                    )),
+                    parent_document: my_parent_document.clone(),
+                    created_at: Local::now().to_string(),
+                    updated_at: "".to_string(),
+                    deleted_at: get_deleted_at(ele.deleted.clone()),
+                })
+                .execute(&mut akt_con)
+            {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("insert document: {}", err)
+                }
+            };
+```
+
+
+For an update of a dataset you can use `.set()` or for all fields of the structure `AsChangeset`, i.e., in the model this macro is entered and then you can update all fields of this structure.
+
+Example 3.9 `models.rs`:
+```rust
+...
+use chrono::NaiveDateTime;
+use diesel::{ Insertable, Queryable, Selectable, Table, AsChangeset};
+use serde::{Deserialize, Serialize};
+...
+
+#[derive(Serialize, Deserialize, Debug, Selectable, Queryable, AsChangeset)]
+#[diesel(table_name = crate::schema::document)]
+pub struct  DocumentSmall {
+    pub id: String,
+    pub subject: String, 
+    pub status: String,
+    pub date: String,
+    pub sender_name: Option<String>,
+    pub sender_addr: Option<String>,
+    pub recipient_name: Option<String>,
+    pub recipient_addr: Option<String>,   
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub category: Option<String>,
+    pub amount: Option<f64>,   
+    pub currency: Option<String>,
+    pub body: Option<String>, 
+    pub filename: Option<String>,
+    pub file_extension: Option<String>,
+    pub file: Option<String>,
+    pub protocol: Option<String>,
+}
+...
+```
+
+The update is called with `.filter(dsl::id.eq(my_document_new.id.clone())))` so that exactly one record gets the update.
+Several `.set()` are defined as tuples, in my example the structure `my_document_new` is set as `AsChangeset` and also the field `updated_at` is set to the current date and time.
+
+Example 3.10:
+```rust
+...
+    let database_name = format!("{}/{}", MAIN_PATH, DATABASE_NAME);
+    let mut conn = establish_connection(&database_name);
+...
+
+ let exec_update = diesel::update(dsl::document
+        .filter(dsl::id.eq(my_document_new.id.clone())))
+        .set((
+            &my_document_new,                            //update AsChangeset
+            dsl::updated_at.eq(Local::now().to_string()) //update datetime
+        ));
+    info!("debug sql\n{}", debug_query::<Sqlite, _>(&exec_update));
+
+    match exec_update.execute(&mut conn)
+    {
+        Ok(_) => {
+            Response {
+                dataname: path,
+                data: json!(&my_document_new).to_string(),
+                error: "".to_string(),
+            }
+        }
+        Err(err) => {
+            error!(?err, "Error: ");
+
+            Response {
+                dataname: path,
+                data: "[]".to_string(),
+                error: err.to_string(),
+            }
+        }
+    }
+```
 
    ***
 
