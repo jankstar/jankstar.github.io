@@ -43,7 +43,7 @@ For the tauri installation please look here [TAURI](https://tauri.app/) and for 
 The usual way is the access via a ``.env`` file. The access is somewhat dependent on the database, i.e., there are also databases that support pool-connections.
 For SQLite, the ``SqliteConnection::establish`` function should be used.
 
-Example 1.1 `database.rs`:
+Example 1 `database.rs`:
 ```rust
 use std::env;
 
@@ -65,7 +65,7 @@ pub fn establish_connection() -> SqliteConnection {
 ```
 Here the library ``dotenvy`` is taken for loading the ``.env`` file. The variable here has the name ``DATABASE_URL``.
 
-Example `.env`
+Example 2`.env`
 ```
 DATABASE_URL=sqlite:///Users/jankstar/tauri_database.db
 ```
@@ -78,7 +78,7 @@ use crate::database::*;
 ```
 Alternatively, the user's `home` directory is accessed.
 
-Example 1.2 `database.rs`
+Example 3 `database.rs`
 ```rust
 use diesel::prelude::*;
 use tracing::info;
@@ -114,7 +114,7 @@ The model defines the structure and the schema the database table.
 There is also the possibility to generate the rust objects from the database. 
 I proceeded like this, but I had to adjust certain fields and settings, so here I present the working result.
 
-Example 2.1 `models.rs`
+Example 4 `models.rs`
 ```rust
 use chrono::NaiveDateTime;
 use diesel::{ Insertable, Queryable, Selectable, Table};
@@ -223,10 +223,11 @@ In addition, field names that are not defined snake_case or correspond to invali
 Here the database field `type` is mapped to the rust field `document_type`.
 
 ### CREATE TABLE IF NOT EXISTS
+
 The library `diesel` does not yet directly support the creating of the tables. So if you want to create the tables first in an application with the start of the server, if they do not exist, then you have to implement the SQL statement itself.
 In my example I have defined the function `check_tables` in the file `schema.rs`.
 
-Example 2.2:
+Example 5:
 
 ```rust
 use diesel::sqlite::Sqlite;
@@ -290,7 +291,7 @@ For the selection of data, a distinction must be made between two variants - on 
 
 The simplest variant is the selection via the ID. 
 
-Example 3.1 Read a document for a document ID:
+Example 6 - Read a document for a document ID:
 ```rust
 use crate::database::*;
 use crate::models::*;
@@ -331,7 +332,7 @@ The fields of the selection are specified in `.select()`, in the example all fie
 
 Here it is very easy to define and select a subset of the fields using a separate structure. The definition of the structure has the advantage that also an object and if necessary a vector to this object can be defined.
 
-Example 3.2 - select only certain fields:
+Example 7 - select only certain fields:
 `models.rs`
 ```rust
 #[derive(Serialize, Deserialize, Debug, Selectable, Queryable)]
@@ -373,13 +374,13 @@ pub struct  DocumentFile {
 An elegant variant for a dynamic selection is the definition `query` as `BoxedDsl`. This can be used to combine and dynamically generate `order_by()` or `filter()` sorts.
 In the following example, a URL is parsed dynamically and the selection conditions are built depending on the URL parameters. The notation is along the lines of `solr'.
 
-For example 3.3:
+For example 8:
 ```html
 http://localhost:8080/get_document?q=body:*Apple*&sort=date%20desc&rows=50
 ```
 In this example, the string `Apple` is to be searched for in the field `body`. The records are sorted by the field `date` in descending order and the first 50 records are selected.
 
-Example 3.4:
+Example 9:
 ```rust
 use crate::database::*;
 use crate::models::*;
@@ -509,47 +510,11 @@ use url::Url;
 The coding is not completely dynamic, because the used fields must have been defined in the structures of the database `schema.rs` and `models.rs`.
 Only the selection statemnt is dynamically assembled. In the example all conversions were also checked for validity by `match`, so that no `panic` is triggered, especially with transfer values from users. 
 
-### Function `debug_query` extracts the statement for the output {#debug_query}
-
-There is also a function to output the generated SQL statement. In this case you separate selection and execution.
-
-Example 3.5:
-```rust
-...
-use diesel::debug_query;
-use crate::diesel::sqlite::Sqlite;
-use diesel::prelude::*;
-use tracing::{error, info, warn};
-use tracing_subscriber;
-...
-
-        let mut conn = establish_connection("tauri_database.db");
-
-        let exec_query = dsl::document
-            .filter(dsl::id.eq(my_query.id))
-            .select(DocumentFile::as_select());
-        info!("debug sql\n{}", debug_query::<Sqlite, _>(&exec_query));
-
-        let my_document = match exec_query.first::<DocumentFile>(&mut conn) {
-            Ok(record) => record,
-            Err(err) => {
-                error!(?err, "Error: ");
-
-                return Response {
-                    dataname: data,
-                    data: "[]".to_string(),
-                    error: format!("{}", err),
-                };
-            }
-        };
-```
-The function `debug_query` extracts the statement for the output. Afterwards the execution and further processing of the data takes place.
-
 ### SQL functions `count(*)` or `sum(amount)` {#count_sum}
 
 The standard functions in SQL for `count(*)` or `sum(x)` are available in `diesel`. But I only got the function `count(*)` to work, so here is the variant as native `sql`.
 
-Example 3.6:
+Example 10:
 ```rust
 ...
 use crate::diesel::sqlite::Sqlite;
@@ -586,11 +551,11 @@ use diesel::sql_types::Double;
 ```
 It is a bit strange, but in the `where` condition the datatype is required to be `dubble`, because my field `amount` is of this type and the return value is `f64` - the values are converted between FromSql/ToSql and the application.
 
-## insert and update function
+## Insert and update function
 
 For an insert, the structure 'Insertable' must be entered.
 
-Example 3.7:
+Example 11:
 ```rust
 ...
 #[derive(Serialize, Deserialize, Debug, Selectable, Insertable, Queryable, AsChangeset)]
@@ -606,7 +571,7 @@ pub struct Document {
 
 Subsequently, with an 'insert' and specification of the complete struture, processing can take place.
 
-Example 3.8:
+Example 12:
 ```rust
  match insert_into(document::dsl::document)
                 .values(Document {
@@ -660,7 +625,7 @@ Example 3.8:
 
 For an update of a dataset you can use `.set()` or for all fields of the structure `AsChangeset`, i.e., in the model this macro is entered and then you can update all fields of this structure.
 
-Example 3.9 `models.rs`:
+Example 13 `models.rs`:
 ```rust
 ...
 use chrono::NaiveDateTime;
@@ -696,7 +661,7 @@ pub struct  DocumentSmall {
 The update is called with `.filter(dsl::id.eq(my_document_new.id.clone())))` so that exactly one record gets the update.
 Several `.set()` are defined as tuples, in my example the structure `my_document_new` is set as `AsChangeset` and also the field `updated_at` is set to the current date and time.
 
-Example 3.10:
+Example 14:
 ```rust
 ...
     let database_name = format!("{}/{}", MAIN_PATH, DATABASE_NAME);
@@ -732,13 +697,49 @@ Example 3.10:
     }
 ```
 
+## Function `debug_query` extracts the statement for the output {#debug_query}
+
+There is also a function to output the generated SQL statement. In this case you separate selection and execution.
+
+Example 15:
+```rust
+...
+use diesel::debug_query;
+use crate::diesel::sqlite::Sqlite;
+use diesel::prelude::*;
+use tracing::{error, info, warn};
+use tracing_subscriber;
+...
+
+        let mut conn = establish_connection("tauri_database.db");
+
+        let exec_query = dsl::document
+            .filter(dsl::id.eq(my_query.id))
+            .select(DocumentFile::as_select());
+        info!("debug sql\n{}", debug_query::<Sqlite, _>(&exec_query));
+
+        let my_document = match exec_query.first::<DocumentFile>(&mut conn) {
+            Ok(record) => record,
+            Err(err) => {
+                error!(?err, "Error: ");
+
+                return Response {
+                    dataname: data,
+                    data: "[]".to_string(),
+                    error: format!("{}", err),
+                };
+            }
+        };
+```
+The function `debug_query` extracts the statement for the output. Afterwards the execution and further processing of the data takes place.
+
    ***
 
 ## Read PDF file to base64 conversion {#read_file}
 
 In my example the name and path of the PDF file is in the SQLite database. In the examples shown above the file name from field `file` and also the path from field `sub_path` is read to the document ID exactly for one document. The files are in the `home` directory in a main directory `MAIN_PATH` belonging to the program and in this then in a `FILE_PATH`. 
 
-Example 4.1 Definition of constants for the directories to be used in the `home` directory:
+Example 16 - Definition of constants for the directories to be used in the `home` directory:
 `database.rs`
 ```rust
 pub const MAIN_PATH: &str = r#"archive"#;
@@ -747,7 +748,7 @@ pub const FILE_PATH: &str = r#"data"#;
 ```
 After the selection of the data from the database the following determination of the `home` directory takes place:
 
-Example 4.2:
+Example 17:
 ```rust
         info!(?my_document.id, "select document id" );
         info!(?my_document.sub_path, "select document subpath" );
@@ -787,7 +788,7 @@ Example 4.2:
 ```
 At the end `pdf_file` contains the complete path for accessing the file, so that now the file can be opened and loaded as binary into a variable `list_of_chunks` of type `Vec<u8>`.
 
-Example 4.3:
+Example 18:
 ```rust
         //open file by name
         let mut file = match std::fs::File::open(&pdf_file) {
@@ -835,7 +836,7 @@ Example 4.3:
 ```
 The data from the PDF file is now in `list_of_chunks` and is converted to `base64` and returned.
 
-Example 4.4:
+Example 19:
 ```rust
        if list_of_chunks.len() != 0 {
             //binary encode to base64
@@ -858,7 +859,7 @@ Example 4.4:
 Finally an info about the communication between Tauri and Vue. For this I can recommend the very good documentation at [Rob Donnelly](https://rfdonnelly.github.io/posts/tauri-async-rust-process/).
 I have implemented this variant. The transfer from/to Vue is always done as `string` in the end, so all structures have to be converted in and out as `json` string.
 
-Example 5.1 Vue javascript file to call Tauri
+Example 20 - Vue javascript file to call Tauri
 ```javascript
   import { invoke } from "@tauri-apps/api/tauri";
 ...
@@ -873,7 +874,7 @@ Example 5.1 Vue javascript file to call Tauri
 ```
 In my example, the `message` field is transmitted as a JSON string and then needs to be parsed in Tauri into the `path`, `query` and `data` components.
 
-Example 5.2 Tauri command  for the `invoke`:
+Example 21 Tauri command  for the `invoke`:
 ```rust
 #[tauri::command]
 async fn js2rs(message: String, state: tauri::State<'_, AsyncProcInputTx>) -> Result<(), String> {
@@ -889,7 +890,7 @@ async fn js2rs(message: String, state: tauri::State<'_, AsyncProcInputTx>) -> Re
 ```
 Here the string is sent into the channel `async_proc_input_tx` to be processed one after the other.
 
-Example 5.2. 
+Example 22. 
 ```rust
 async fn async_process_model(
     mut input_rx: mpsc::Receiver<String>,
@@ -933,7 +934,7 @@ async fn async_process_model(
 ```
 There are the following structures in my example that are converted between Tauri and Vue:
 
-Example 5.3. from `schema.rs`.
+Example 23 from `schema.rs`.
 ```rust
 #[derive(serde::Serialize, Debug)]
 pub struct Response {
@@ -957,7 +958,7 @@ Similarly, in my application I need central information that the server manages 
 
 First we need the data structure and the functions for reading, changing and saving.
 
-Example 6.1 `main.rs`
+Example 24 `main.rs`
 ```rust
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct AppData {
@@ -1048,7 +1049,7 @@ There is now the function `set(data)` which also calls `save_me()` and finally s
 
 In the `main` routine in the tauri server, the object can be passed via `manage()` and is then available optinally as a parameter in dan tauri-handlers.
 
-Example 6.2:
+Example 25:
 ```rust
 fn main() {
     tracing_subscriber::fmt::init();
@@ -1086,7 +1087,7 @@ fn main() {
 ```
 The tauri handler `js2rs` can now receive the new parameter:
 
-Example 6.2:
+Example 26:
 ```rust
 #[tauri::command]
 async fn js2rs(
@@ -1113,7 +1114,7 @@ async fn js2rs(
 
 Because at this point processing does not yet take place, but the data is first passed into a channel for asynchronous processing, the Message and AppData must be passed as tuples and the type of the Input parameter must also be adjusted.
 
-Example 6.3:
+Example 27:
 ```rust
 ...
 struct AsyncProcInputTx {
@@ -1171,7 +1172,7 @@ To do this, the channel and also the `async_process_model` function must be adap
 
 In the tauri handler itself the object AppData can then be used. In my example there is `user` for reading and `save_user` for saving from the application.
 
-Example 6.4.:
+Example 28:
 ```rust
 #[tauri::command(async)]
 async fn message_handler(
@@ -1254,7 +1255,7 @@ The `save_user` for the function `set(data)` off, which then also writes the dat
 
 On the client side in Vue, simply start the `invoke` with the data:
 
-Example 6.5 `MainLayout.vue`:
+Example 29 `MainLayout.vue`:
 ```javascript
   import { invoke } from "@tauri-apps/api/tauri";
 
@@ -1284,7 +1285,7 @@ The `avatar` is determined on the client, that must be released for the access i
 
 The communication from rust to Vue (Javascript) is done via a listener. This is registered in `MainLayout.vue` at the time `create()` and requests at this point also the user data via `invoke`.
 
-Example 6.6
+Example 30:
 ```rust
 async created() {
     console.log(`MainLayout created()`);
