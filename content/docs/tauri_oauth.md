@@ -199,7 +199,7 @@ async fn js2rs(
 }
 ```
 
-## 3.5 Call ``log_in()``and ``get_token`` for OAuth2
+## 3.5 Calling the OAuth2
 The solution used here is taken from [oauth2 crate](https://github.com/ramosbugs/oauth2-rs/blob/main/examples/google.rs) and slightly optimised.
 
 The ``log_in()`` function first fetches the access token via OAuth2 and then the user data for authentication. Only if both actions were successful, ``true`` is returned.
@@ -230,6 +230,7 @@ Match the ``get_token()`` function:
 ```
 The login via ``get_toek()`` can use the email address or suggest it in the mask. If there is a refresh token, this can be used first. For this case a login is not necessary. These values are passed.
 
+The ``get_token()`` function:
 ```rust
 ...
     //get the google client ID and the client secret from .env file
