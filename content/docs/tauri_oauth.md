@@ -311,6 +311,8 @@ A CSRF token is required for the login. The permissions requested from the appli
     println!("The authorization URL is:\n{}\n", authorize_url.to_string());
 ...
 ```
+The ``extra_param`` control the login screen, the email address is pre-faded.
+
 This ``authorize_url`` is now started in a new Tauri window:
 ```rust
 ...
