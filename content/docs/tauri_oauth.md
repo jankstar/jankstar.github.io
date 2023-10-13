@@ -6,7 +6,6 @@ weight: 202310
 ---
 # Tauri oauth2 example (Tauri + Vue 3 + TypeScript)
 
-## summary
 This example is a Tauri app with a Vue 3 / TS client and for an authentication of the user via a Google account/email, i.e., the Google login window opens and the user must log in and agree to the transfer of his profile data (name and email).
 The user data and the refresh token are stored, so that subsequently at the start of the app an automatic login takes place.
 
