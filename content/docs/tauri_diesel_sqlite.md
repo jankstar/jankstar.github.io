@@ -1367,5 +1367,6 @@ In some places, one wishes for better documentation and more examples - which is
 
 Thanks to the hardworking developers of `diesel`and `tauri`- it was fun and I will continue down the path because you can't process media data in Electron for example and that runs in tauri, that's my next project.
 
+(2023/08/01)<br>
 [Index](https://jankstar.github.io/index)
 

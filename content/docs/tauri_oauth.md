@@ -503,4 +503,5 @@ Setting up OAuth2 authentication for Google and using it in Tauri is not easy, b
 The Rust Crate for OAuth provides nice examples, but you have to search and try out the details. 
 All in all, the functions are ready for productive use.
 
-(2023/10/01)
+(2023/10/01)<br>
+[Index](https://jankstar.github.io/index)
