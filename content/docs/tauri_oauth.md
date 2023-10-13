@@ -31,7 +31,7 @@ The Client ID and Client Secrete data can be found on the page.
 
 ## 2.2 ``.env`` File
 A ``.env`` file with the following data is needed in the ```src-tauri``` directory:
-```json
+```
 GOOGLE_CLIENT_ID=<CLIENT_ID>
 GOOGLE_CLIENT_SECRET=>CLIENT_SECRET>
 ```
@@ -436,8 +436,8 @@ The Tauri window for the login must be closed at the right moment, furthermore, 
 ```
 The timer or the event ``CloseRequested`` connects to the server, which then causes the login to be aborted.
 
-Folgende Antwort liefert ``StandardTokenResponse``:
-```json
+The following answer provides ``StandardTokenResponse``:
+```
 StandardTokenResponse {
     access_token: AccessToken([redacted]),
     token_type: Bearer,
