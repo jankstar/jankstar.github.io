@@ -5,7 +5,6 @@ type: docs
 weight: 202310
 ---
 # Tauri oauth2 example (Tauri + Vue 3 + TypeScript)
-[tauri_oauth](https://github.com/jankstar/tauri_oauth)
 
 ## summary
 This example is a Tauri app with a Vue 3 / TS client and for an authentication of the user via a Google account/email, i.e., the Google login window opens and the user must log in and agree to the transfer of his profile data (name and email).
@@ -13,7 +12,9 @@ The user data and the refresh token are stored, so that subsequently at the star
 
 Attention: this application is not intended for productive use, because user data and token are not encrypted, but stored in plain text! <br>
 
-## 1 run it
+## 1 Code / Example
+The code can be found at: [tauri_oauth](https://github.com/jankstar/tauri_oauth)
+
 ```npm run tauri dev```
 
 ## 2 Preparation
