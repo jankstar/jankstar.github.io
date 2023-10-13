@@ -31,6 +31,13 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 base64 = "0.21.2"
 
+[dependencies.uuid]
+version = "1.4.1"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
 ```
 If necessary, install the libraries with ``cargo add xxx``.
 
@@ -841,7 +848,7 @@ Example 19:
        if list_of_chunks.len() != 0 {
             //binary encode to base64
             use base64::{engine::general_purpose, Engine as _};
-            let base64_data = general_purpose::STANDARD_NO_PAD.encode(list_of_chunks);
+            let base64_data = general_purpose::STANDARD.encode(list_of_chunks);
 
             return Response {
                 dataname: data,
