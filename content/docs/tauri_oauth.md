@@ -200,7 +200,7 @@ async fn js2rs(
 ```
 
 ## 3.5 Call ``log_in()``and ``get_token`` for OAuth2
-The solution used here is taken from ``https://github.com/ramosbugs/oauth2-rs/blob/main/examples/google.rs`` and slightly optimised.
+The solution used here is taken from [oauth2 crate](https://github.com/ramosbugs/oauth2-rs/blob/main/examples/google.rs) and slightly optimised.
 
 The ``log_in()`` function first fetches the access token via OAuth2 and then the user data for authentication. Only if both actions were successful, ``true`` is returned.
 
