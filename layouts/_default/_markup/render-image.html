@@ -1,0 +1,23 @@
+{{- /* Bild über Relearn ausgeben (inkl. Lightbox); im Handbuch zusätzlich nummerierte Bildunterschrift */ -}}
+{{- $img := partial "shortcodes/image.html" (dict
+  "page" .Page
+  "url" .Destination
+  "title" .Title
+  "alt" .Text
+  "id" ""
+  "ordinal" .Ordinal
+  "attributes" .Attributes
+) -}}
+{{- if and .IsBlock (eq .Page.Section "tryton-real-estate") -}}
+  {{- $nr := index (findRE `^[0-9]+(\.[0-9]+)*` .Page.Title 1) 0 | default "" -}}
+  {{- $label := cond (eq .Page.Language.Lang "de") "Abbildung" "Figure" -}}
+  {{- $num := cond (ne $nr "") (printf "%s-%d" $nr (add .Ordinal 1)) (printf "%d" (add .Ordinal 1)) -}}
+<figure class="jk-figure">
+{{ $img }}
+<figcaption><strong>{{ $label }} {{ $num }}:</strong> {{ .Text }}</figcaption>
+</figure>
+{{- else if .IsBlock -}}
+<p>{{ $img }}</p>
+{{- else -}}
+{{ $img }}
+{{- end -}}

@@ -1,0 +1,46 @@
+baseURL = 'https://jankstar.de/'
+title = 'JanKStar'
+defaultContentLanguage = 'de'
+defaultContentLanguageInSubdir = false
+ignoreLogs = ['warning-goldmark-raw-html']
+
+[module]
+  [[module.imports]]
+    path = 'github.com/McShelby/hugo-theme-relearn'
+
+# print = Druckansicht für Kapitel und Seiten
+[outputs]
+  home    = ['html', 'rss', 'print']
+  section = ['html', 'rss', 'print']
+  page    = ['html', 'print']
+
+# Reihenfolge: Standardsprache zuerst
+[languages]
+  [languages.de]
+    locale = 'de'
+    label = 'Deutsch'
+    weight = 1
+  [languages.en]
+    locale = 'en'
+    label = 'English'
+    weight = 2
+
+[markup.highlight]
+  noClasses = false
+  lineNumbersInTable = false
+[markup.goldmark.renderer]
+  unsafe = true
+[markup.goldmark.parser]
+  wrapStandAloneImageWithinParagraph = false
+[markup.goldmark.parser.attribute]
+  block = true
+
+[params]
+  themeVariant = ['jankstar']
+  link.underline = true
+  showVisitedLinks = true
+  disableLanguageSwitchingButton = false
+  # leere Handbuchseiten (hidden: true) nicht in Suche, Sitemap/SEO und Tags
+  disableSearchHiddenPages = true
+  disableSeoHiddenPages = true
+  disableTagHiddenPages = true
