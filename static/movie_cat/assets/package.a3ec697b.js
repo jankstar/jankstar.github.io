@@ -1,0 +1,1 @@
+const e="0.2.8",s={"@quasar/babel-preset-app":"^2.0.2","@quasar/extras":"^1.16.9","@typescript-eslint/eslint-plugin":"^6.13.2",quasar:"^2.16.4","ts-ebml":"^2.0.2",vue:"^3.4.31","vue-i18n":"^9.8.0","vue-router":"^4.2.5"};export{s as d,e as v};

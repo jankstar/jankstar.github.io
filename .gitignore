@@ -1,0 +1,7 @@
+public/
+resources/_gen/
+readme.md
+specs/
+.DS_Store
+hist/
+start_to_github

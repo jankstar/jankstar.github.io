@@ -1,0 +1,6 @@
+<link rel="stylesheet" href="{{ "fonts/lato/lato.css" | relURL }}">
+{{- /* Besucherstatistik GoatCounter (ohne Cookies), nur im veröffentlichten Build */ -}}
+{{- if hugo.IsProduction }}
+<script data-goatcounter="https://jankstar.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+{{- end }}
